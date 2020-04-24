@@ -3,12 +3,19 @@ from tkinter import ttk
 from tkinter import simpledialog
 from tkinter import filedialog
 from tkinter import messagebox
-from array import array
+
 import time
 from datetime import datetime
 
-import pyftdi.serialext
-import serial
+from array import array
+
+try:
+    import pyftdi.serialext
+    from pyftdi.ftdi import Ftdi
+    import serial
+except:
+    print("Unable to import pyftdi & serial")
+
 
 
 
@@ -17,23 +24,14 @@ import serial
 class GUI():
     def __init__(self):
 
-        try:
-            None
-            #self.ser = serial.Serial('COM9')
-            #if self.ser.isOpen:
-            #    print(self.ser.name + 'Communication Open')
-
-            #self.ser.bytesize = 8
-            #self.ser.stopbits = 1
-            #self.ser.baud = 9600
-        except:
-            print('serial error')
-
+        self.ftdi = None
+        self.trameString = ''
+        self.trameByte = [0x00,0x00,0x00,0x00]
         self.app = tk.Tk()
         self.app.geometry('1280x800')     # Set size of the frame + place it at 0,0 in the screen
         self.app.configure(bg='white')    # set background
         self.app.title('GUI Robotic Arm') # set window's title
-
+        self.app.bind("<Return>", self.handleReturn)
         # STYLE
         self.style = ttk.Style()
         self.style.configure('TFrame',background='white')
@@ -73,7 +71,7 @@ class GUI():
         self.COM_selection = tk.StringVar()
         self.COM_windows_button = ttk.Radiobutton(self.GUI_COM_FRAME,text='Windows',variable=self.COM_selection,value='windows')
         self.COM_beaglebone_button = ttk.Radiobutton(self.GUI_COM_FRAME,text='BeagleBone',variable=self.COM_selection,value='beaglebone')
-        self.COM_start_stop_button = ttk.Button(self.GUI_COM_FRAME,text='Start',command=self.sendSerialTest)
+        self.COM_start_stop_button = ttk.Button(self.GUI_COM_FRAME,text='Start',command=self.gestionSerial)
 
         self.COM_main_label.pack(side=tk.TOP,fill=tk.Y)
         self.COM_windows_button.pack(side=tk.TOP,fill=tk.Y,anchor=tk.W)
@@ -114,7 +112,7 @@ class GUI():
         self.FUNC_ask_feedback_check = ttk.Checkbutton(self.GUI_FUNCTION_FRAME,text='Feedback',variable=self.FUNC_ask_feedback_var)
         self.FUNC_trame_label = ttk.Label(self.GUI_FUNCTION_FRAME,text='Trame :')
         self.FUNC_trame_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=20)
-        self.FUNC_trame_send_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send')
+        self.FUNC_trame_send_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send',command=self.sendTrame)
 
         self.FUNC_driver_label.grid(row=0,column=0,sticky=tk.E)
         self.FUNC_driver_combo.grid(row=0,column=1)
@@ -133,10 +131,57 @@ class GUI():
         self.FUNC_trame_send_button.grid(row=10,column=1,sticky=tk.EW)
 
 
-    def sendSerialTest(self):
-        port = pyftdi.serialext.serial_for_url('ftdi://ftdi:232:A50285BI/1', baudrate=9600)
-        cw = [0x12]
-        port.write(serial.to_bytes([0x12]))
+    def gestionSerial(self):
+        if self.COM_start_stop_button['text'] == 'Start':
+            if self.COM_selection.get() == 'windows':
+                print('start windows')
+                try:
+                    self.ftdi = pyftdi.serialext.serial_for_url('ftdi://ftdi:232:A50285BI/1', baudrate=9600)
+                    self.COM_start_stop_button['text'] = 'Stop'
+
+                except:
+                    print('Unable to connect to Ftdi')
+
+            elif self.COM_selection.get() == 'beaglebone':
+                None
+        else:
+            if self.COM_selection.get() == 'windows':
+                print('close windows')
+                try:
+                    self.ftdi.close()
+                    self.COM_start_stop_button['text'] = 'Start'
+                except:
+                    print('Unable to close Serial Port')
+
+            elif self.COM_selection.get() == 'beaglebone':
+                None
+            
+
+
+    def sendTrame(self):
+        if self.FUNC_trame_entry.get() != '':
+            trame = self.FUNC_trame_entry.get()
+            if len(trame) == 8:
+                self.trameByte[0] = int(trame[0:2],16)
+                self.trameByte[1] = int(trame[2:4],16)
+                self.trameByte[2] = int(trame[4:6],16)
+                self.trameByte[3] = int(trame[6:8],16)
+                try:
+                    self.ftdi.write(serial.to_bytes(self.trameByte))
+                    self.trameByte = [0x00,0x00,0x00,0x00]
+                except:
+                    print('Error while writting on FTDI')
+            else:
+                print('Invalid Lenght Trame')
+        else:
+            print("Empty Trame")
+
+    # Handle for Return aka ENTER
+    def handleReturn(self,event):               
+        if event.widget == self.FUNC_trame_entry: #if the focus is on the Trame entry, send the trame
+            self.sendTrame()
+
+
 
 app = GUI()
 app.app.mainloop()
