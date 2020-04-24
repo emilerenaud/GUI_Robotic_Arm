@@ -3,12 +3,31 @@ from tkinter import ttk
 from tkinter import simpledialog
 from tkinter import filedialog
 from tkinter import messagebox
-
+from array import array
 import time
 from datetime import datetime
 
+import pyftdi.serialext
+import serial
+
+
+
+
+
 class GUI():
     def __init__(self):
+
+        try:
+            None
+            #self.ser = serial.Serial('COM9')
+            #if self.ser.isOpen:
+            #    print(self.ser.name + 'Communication Open')
+
+            #self.ser.bytesize = 8
+            #self.ser.stopbits = 1
+            #self.ser.baud = 9600
+        except:
+            print('serial error')
 
         self.app = tk.Tk()
         self.app.geometry('1280x800')     # Set size of the frame + place it at 0,0 in the screen
@@ -54,7 +73,7 @@ class GUI():
         self.COM_selection = tk.StringVar()
         self.COM_windows_button = ttk.Radiobutton(self.GUI_COM_FRAME,text='Windows',variable=self.COM_selection,value='windows')
         self.COM_beaglebone_button = ttk.Radiobutton(self.GUI_COM_FRAME,text='BeagleBone',variable=self.COM_selection,value='beaglebone')
-        self.COM_start_stop_button = ttk.Button(self.GUI_COM_FRAME,text='Start')
+        self.COM_start_stop_button = ttk.Button(self.GUI_COM_FRAME,text='Start',command=self.sendSerialTest)
 
         self.COM_main_label.pack(side=tk.TOP,fill=tk.Y)
         self.COM_windows_button.pack(side=tk.TOP,fill=tk.Y,anchor=tk.W)
@@ -113,6 +132,11 @@ class GUI():
         self.FUNC_trame_entry.grid(row=9,column=0,columnspan=2,sticky=tk.EW)
         self.FUNC_trame_send_button.grid(row=10,column=1,sticky=tk.EW)
 
+
+    def sendSerialTest(self):
+        port = pyftdi.serialext.serial_for_url('ftdi://ftdi:232:A50285BI/1', baudrate=9600)
+        cw = [0x12]
+        port.write(serial.to_bytes([0x12]))
 
 app = GUI()
 app.app.mainloop()
