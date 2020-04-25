@@ -27,8 +27,20 @@ class GUI():
         self.ftdi = None
         self.trameString = ''
         self.trameByte = [0x00,0x00,0x00,0x00]
+
+        # Option Var
+        self.homingEnableVar = 0
+        self.enableMotorVar = 0
+        self.redLightVar = 0
+        self.greenLightVar = 0
+        self.blueLightVar = 0
+
+        self.initGUI()
+        
+
+    def initGUI(self):
         self.app = tk.Tk()
-        self.app.geometry('1280x800')     # Set size of the frame + place it at 0,0 in the screen
+        self.app.geometry('800x480')     # Set size of the frame + place it at 0,0 in the screen
         self.app.configure(bg='white')    # set background
         self.app.title('GUI Robotic Arm') # set window's title
         self.app.bind("<Return>", self.handleReturn)
@@ -99,19 +111,20 @@ class GUI():
         self.FUNC_driver_label = ttk.Label(self.GUI_FUNCTION_FRAME,text='Driver :')
         self.FUNC_driver_combo = ttk.Combobox(self.GUI_FUNCTION_FRAME,width=3)
         self.FUNC_driver_combo['values'] = ['#1','#2','#3','#4','#5','#6']
-        self.FUNC_home_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Homing')
-        self.FUNC_enable_motor = ttk.Button(self.GUI_FUNCTION_FRAME,text='Enable Motor')
+        self.FUNC_home_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Homing',command=self.homingFunction)
+        self.FUNC_enable_motor = ttk.Button(self.GUI_FUNCTION_FRAME,text='Enable Motor',command=self.enableMotorFunction)
         self.FUNC_position_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=4)
         self.FUNC_send_motor_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send Motor')
         self.FUNC_position_servo = ttk.Entry(self.GUI_FUNCTION_FRAME,width=4)
         self.FUNC_send_servo_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send Servo')
-        self.FUNC_red_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Red Light')
+        self.FUNC_red_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Red Light',command=self.redLightFunction)
         self.FUNC_green_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Green Light')
         self.FUNC_blue_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Blue Light')
         self.FUNC_ask_feedback_var = tk.BooleanVar()
         self.FUNC_ask_feedback_check = ttk.Checkbutton(self.GUI_FUNCTION_FRAME,text='Feedback',variable=self.FUNC_ask_feedback_var)
         self.FUNC_trame_label = ttk.Label(self.GUI_FUNCTION_FRAME,text='Trame :')
-        self.FUNC_trame_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=20)
+        self.FUNC_trame_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=10)
+        self.FUNC_trame_entry.insert(0,'00000000')
         self.FUNC_trame_send_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send',command=self.sendTrame)
 
         self.FUNC_driver_label.grid(row=0,column=0,sticky=tk.E)
@@ -127,9 +140,8 @@ class GUI():
         self.FUNC_blue_button.grid(row=6,column=0,columnspan=2,sticky=tk.EW)
         self.FUNC_ask_feedback_check.grid(row=7,column=0,columnspan=2,sticky=tk.EW)
         self.FUNC_trame_label.grid(row=8,column=0,columnspan=2,sticky=tk.EW)
-        self.FUNC_trame_entry.grid(row=9,column=0,columnspan=2,sticky=tk.EW)
-        self.FUNC_trame_send_button.grid(row=10,column=1,sticky=tk.EW)
-
+        self.FUNC_trame_entry.grid(row=9,column=0,sticky=tk.EW)
+        self.FUNC_trame_send_button.grid(row=9,column=1,sticky=tk.EW)
 
     def gestionSerial(self):
         if self.COM_start_stop_button['text'] == 'Start':
@@ -156,8 +168,6 @@ class GUI():
             elif self.COM_selection.get() == 'beaglebone':
                 None
             
-
-
     def sendTrame(self):
         if self.FUNC_trame_entry.get() != '':
             trame = self.FUNC_trame_entry.get()
@@ -178,8 +188,51 @@ class GUI():
 
     # Handle for Return aka ENTER
     def handleReturn(self,event):               
-        if event.widget == self.FUNC_trame_entry: #if the focus is on the Trame entry, send the trame
+        if event.widget == self.FUNC_trame_entry: #if the focus is on Trame entry, send the trame
             self.sendTrame()
+
+    def homingFunction(self):
+        if self.homingEnableVar == 0:
+            number = int(self.FUNC_trame_entry.get()[0:1])
+            number += 8
+            self.homingEnableVar = 1;
+        else:
+            number = int(self.FUNC_trame_entry.get()[0:1])
+            number -= 8
+            self.homingEnableVar = 0;
+
+        self.FUNC_trame_entry.delete(0,1)
+        self.FUNC_trame_entry.insert(0,str(number))
+
+    def enableMotorFunction(self):
+        if self.enableMotorVar == 0:
+            number = int(self.FUNC_trame_entry.get()[1:2])
+            number += 1
+            self.enableMotorVar = 1;
+        else:
+            number = int(self.FUNC_trame_entry.get()[1:2])
+            number -= 1
+            self.enableMotorVar = 0;
+
+        self.FUNC_trame_entry.delete(1,2)
+        self.FUNC_trame_entry.insert(1,str(number))
+
+    def redLightFunction(self):
+        if self.redLightVar == 0:
+            number = int(self.FUNC_trame_entry.get()[1:2])
+            number += 4
+            self.redLightVar = 1;
+        else:
+            number = int(self.FUNC_trame_entry.get()[1:2])
+            number -= 4
+            self.redLightVar = 0;
+
+        self.FUNC_trame_entry.delete(1,2)
+        self.FUNC_trame_entry.insert(1,str(number))
+
+
+        
+                
 
 
 
