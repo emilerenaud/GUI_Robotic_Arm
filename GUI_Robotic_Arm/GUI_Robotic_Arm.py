@@ -26,8 +26,8 @@ class GUI():
 
         self.ftdi = None
         self.trameString = ''
-        self.trameByte = [0x00,0x00,0x00,0x00]
-
+        self.trameByte = [0x00,0x00,0x00,0x00,0x00]
+        self.checksumByte = [0x00,0x00,0x00,0x00,0x00]
         # Option Var
         self.homingEnableVar = 0
         self.enableMotorVar = 0
@@ -130,8 +130,11 @@ class GUI():
         self.FUNC_ask_feedback_check = ttk.Checkbutton(self.GUI_FUNCTION_FRAME,text='Feedback',variable=self.FUNC_ask_feedback_var)
         self.FUNC_reset_trame = ttk.Button(self.GUI_FUNCTION_FRAME,text='Reset',command=self.resetTrame)
         self.FUNC_trame_label = ttk.Label(self.GUI_FUNCTION_FRAME,text='Trame :')
-        self.FUNC_trame_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=10)
-        self.FUNC_trame_entry.insert(0,'00000000')
+        self.FUNC_trame_string = tk.StringVar()
+        self.FUNC_trame_string.set('0000000000')
+        #self.FUNC_trame_string.trace('w',self.calculateCheckSum)
+        self.FUNC_trame_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=10,textvariable=self.FUNC_trame_string)
+        #self.FUNC_trame_entry.insert(0,'0000000000')
         self.FUNC_trame_send_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Send',command=self.sendTrame)
 
         self.FUNC_driver_label.grid(row=0,column=0,sticky=tk.E)
@@ -158,7 +161,7 @@ class GUI():
             if self.COM_selection.get() == 'windows':
                 print('start windows')
                 try:
-                    self.ftdi = pyftdi.serialext.serial_for_url('ftdi://ftdi:232:A50285BI/1', baudrate=9600)
+                    self.ftdi = pyftdi.serialext.serial_for_url('ftdi://ftdi:232:A50285BI/1', baudrate=19200) # Change for FTDI.
                     self.COM_start_stop_button['text'] = 'Stop'
 
                 except:
@@ -181,14 +184,15 @@ class GUI():
     def sendTrame(self):
         if self.FUNC_trame_entry.get() != '':
             trame = self.FUNC_trame_entry.get()
-            if len(trame) == 8:
+            if len(trame) == 10:
                 self.trameByte[0] = int(trame[0:2],16)
                 self.trameByte[1] = int(trame[2:4],16)
                 self.trameByte[2] = int(trame[4:6],16)
                 self.trameByte[3] = int(trame[6:8],16)
+                self.trameByte[4] = int(trame[8:10],16)
                 try:
                     self.ftdi.write(serial.to_bytes(self.trameByte))
-                    self.trameByte = [0x00,0x00,0x00,0x00]
+                    self.trameByte = [0x00,0x00,0x00,0x00,0x00]
                 except:
                     print('Error while writting on FTDI')
             else:
@@ -352,10 +356,11 @@ class GUI():
 
         self.FUNC_trame_entry.delete(position,position+lenght)
         self.FUNC_trame_entry.insert(position,str(number))
+        self.calculateCheckSum()
 
     def resetTrame(self):
         self.FUNC_trame_entry.delete(0,tk.END)
-        self.FUNC_trame_entry.insert(0,'00000000')
+        self.FUNC_trame_entry.insert(0,'0000000000')
         self.homingEnableVar = 0
         self.enableMotorVar = 0
         self.redLightVar = 0
@@ -380,6 +385,42 @@ class GUI():
              number = int(self.FUNC_trame_entry.get()[0:1],16)
              number += 1
              self.writeHexinEntry(number,0,1)
+
+    def calculateCheckSum(self):
+        #trame = self.FUNC_trame_entry.get()
+        trame = self.FUNC_trame_string.get()
+        print(len(trame))
+        if len(trame) == 10:
+            self.checksumByte[0] = int(trame[0:2],16)
+            self.checksumByte[1] = int(trame[2:4],16)
+            self.checksumByte[2] = int(trame[4:6],16)
+            self.checksumByte[3] = int(trame[6:8],16)
+            self.checksumByte[4] = int(trame[8:10],16)
+            self.checksumByte[4] = self.checksumByte[0] + self.checksumByte[1] +self.checksumByte[2] +self.checksumByte[3]
+            if self.checksumByte[4] >= 512:
+                self.checksumByte[4] -= 512
+            if self.checksumByte[4] >= 256:
+                self.checksumByte[4] -= 256
+            
+            print(self.checksumByte[4])
+            number = self.checksumByte[4]
+            number = number.to_bytes(((number.bit_length() + 7) // 8),"big").hex() # convertion dec to hex
+            print(number)
+            self.FUNC_trame_entry.delete(8,10)
+            self.FUNC_trame_entry.insert(8,str(number))
+        #    if self.checksumByte[4] != 0:
+        #        self.FUNC_trame_entry.delete(8,10)
+        #        if self.checksumByte[4] >= 10:
+        #            self.FUNC_trame_entry.insert(8,str(self.checksumByte[4]))
+        #        else:
+        #            self.FUNC_trame_entry.insert(8,'0'+str(self.checksumByte[4]))
+        #    else:
+        #        self.FUNC_trame_entry.delete(8,10)
+        #        self.FUNC_trame_entry.insert(8,str('00'))
+        else:
+            print('Invalid lenght checksum')
+        
+
 
 
 
