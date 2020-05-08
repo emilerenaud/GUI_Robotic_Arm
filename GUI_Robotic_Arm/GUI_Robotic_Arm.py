@@ -34,6 +34,10 @@ class GUI():
         self.redLightVar = 0
         self.greenLightVar = 0
         self.blueLightVar = 0
+        self.driverNumber = 0
+        self.homing = 0
+        self.lsbPosition = 0
+        self.gripperPosition = 0
 
         self.initGUI()
         
@@ -185,18 +189,27 @@ class GUI():
         if self.FUNC_trame_entry.get() != '':
             trame = self.FUNC_trame_entry.get()
             if len(trame) == 10:
-                self.trameByte[0] = int(trame[0:2],16)
-                self.trameByte[1] = int(trame[2:4],16)
-                self.trameByte[2] = int(trame[4:6],16)
-                self.trameByte[3] = int(trame[6:8],16)
-                self.trameByte[4] = int(trame[8:10],16)
+                switch = trame[1] + trame[0]
+                self.trameByte[0] = int(switch, 16)
+                
+                switch = trame[3] + trame[2]
+                self.trameByte[1] = int(switch, 16)
+
+                switch = trame[5] + trame[4]
+                self.trameByte[2] = int(switch, 16)
+
+                switch = trame[7] + trame[6]
+                self.trameByte[3] = int(switch, 16)
+
+                switch = trame[9] + trame[8]
+                self.trameByte[4] = int(switch, 16)
                 try:
                     self.ftdi.write(serial.to_bytes(self.trameByte))
                     self.trameByte = [0x00,0x00,0x00,0x00,0x00]
                 except:
                     print('Error while writting on FTDI')
             else:
-                print('Invalid Lenght Trame')
+                print('Invalid Trame Length')
         else:
             print("Empty Trame")
 
@@ -211,38 +224,34 @@ class GUI():
         elif event.widget == self.FUNC_fan_entry:
             self.FanValueFunction()
 
+    # Address 0-2 (3b)
+    def selectDriverFunction(self,event=None):
+         number = self.FUNC_driver_combo.get()
+         self.driverNumber = int(number[1])
+         number = self.homing + self.driverNumber
+         self.writeHexinEntry(number,0,1) 
+
+    # Homing 3 (1b)
     def homingFunction(self):
         if self.homingEnableVar == 0:
-            number = int(self.FUNC_trame_entry.get()[0:1],16)
-            number += 1
+            number = 8
             self.homingEnableVar = 1;
         else:
-            number = int(self.FUNC_trame_entry.get()[0:1],16)
-            number -= 1
+            number = 0
             self.homingEnableVar = 0;
+        self.homing = number
+        number = self.homing + self.driverNumber
+        self.writeHexinEntry(number,0,1) 
 
-        self.writeHexinEntry(number,0,1)
-
-    def enableMotorFunction(self):
-        if self.enableMotorVar == 0:
-            number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number += 1
-            self.enableMotorVar = 1
-        else:
-            number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number -= 1
-            self.enableMotorVar = 0
-
-        self.writeHexinEntry(number,1,1)
-
+    # RGBMode 4-6 (3b)
     def redLightFunction(self):
         if self.redLightVar == 0:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number += 8
+            number += 1
             self.redLightVar = 1
         else:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number -= 8
+            number -= 1
             self.redLightVar = 0
 
         self.writeHexinEntry(number,1,1)
@@ -250,11 +259,11 @@ class GUI():
     def greenLightFunction(self):
         if self.greenLightVar == 0:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number += 4
+            number += 2
             self.greenLightVar = 1
         else:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number -= 4
+            number -= 2
             self.greenLightVar = 0
 
         self.writeHexinEntry(number,1,1)
@@ -262,15 +271,46 @@ class GUI():
     def blueLightFunction(self):
         if self.blueLightVar == 0:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number += 2
+            number += 4
             self.blueLightVar = 1
         else:
             number = int(self.FUNC_trame_entry.get()[1:2],16)
-            number -= 2
+            number -= 4
             self.blueLightVar = 0
 
         self.writeHexinEntry(number,1,1)
 
+    # Enable/Disable 7 (1b)
+    def enableMotorFunction(self):
+        if self.enableMotorVar == 0:
+            number = int(self.FUNC_trame_entry.get()[1:2],16)
+            number += 8
+            self.enableMotorVar = 1
+        else:
+            number = int(self.FUNC_trame_entry.get()[1:2],16)
+            number -= 8
+            self.enableMotorVar = 0
+
+        self.writeHexinEntry(number,1,1)
+
+    # Gripper 8-14 (7b)
+    def servoValueFunction(self):
+        if self.FUNC_position_servo.get() == '':
+            return
+        position = int(self.FUNC_position_servo.get())
+
+        if position > 100 or position < 0:
+            print("Invalid Position. 0-100 values only")
+            self.FUNC_position_servo.delete(0,tk.END)
+            return
+
+        self.gripperPosition = position & 0x7F
+        position = self.gripperPosition + self.lsbPosition
+        self.writeHexinEntry((position & 0x0F),2,1)
+        self.writeHexinEntry((position >> 4),3,1)
+
+
+    # Position 15-23 (9b)
     def motorValueFunction(self):
         if self.FUNC_position_entry.get() == '':
             return
@@ -280,64 +320,89 @@ class GUI():
             self.FUNC_position_entry.delete(0,tk.END)
             return
 
-        if number >= 256:
-            highBit = int(self.FUNC_trame_entry.get()[3:4],16)
-            if highBit % 2 == 0:
-                highBit += 1
-            number -= 256
-        else:
-            highBit = int(self.FUNC_trame_entry.get()[3:4],16)
-            if highBit % 2 != 0:
-                highBit -= 1
-        self.writeHexinEntry(highBit,3,1)
+        self.lsbPosition = (number & 0x01) << 7
+        position = self.gripperPosition + self.lsbPosition
+        self.writeHexinEntry((position & 0x0F),2,1)
+        self.writeHexinEntry((position >> 4),3,1)
 
-        if number == 0:
-            self.writeHexinEntry('00',4,2)
-            return
+        number = number >> 1
+        self.writeHexinEntry((number & 0x0F),4,1)
+        self.writeHexinEntry((number >> 4),5,1)
 
-        number = number.to_bytes(((number.bit_length() + 7) // 8),"big").hex() # convertion dec to hex
-        self.writeHexinEntry(number,4,2)
 
-    def servoValueFunction(self):
-        if self.FUNC_position_servo.get() == '':
-            return
-        number = int(self.FUNC_position_servo.get())
-        directionBit = int(self.FUNC_trame_entry.get()[3:4],16) # read directionBit before write new value.
-
-        if number > 100 or number < 0:
-            print("Invalid Position. 0-100 values only")
-            self.FUNC_position_servo.delete(0,tk.END)
-            return
-        number <<= 1 # shift by 1 to free the first one.
-       
-        if number == 0:
-            self.writeHexinEntry('00',2,2)
-            if directionBit % 2 == 1:                   # if the bit is 1, write it back in the entry.
-                self.writeHexinEntry(directionBit,3,1)
-
-            return
-
-        number = number.to_bytes(((number.bit_length() + 7) // 8),"big").hex() # convertion dec to hex
-        self.writeHexinEntry(number,2,2)
-        if directionBit % 2 == 1:
-            number = int(self.FUNC_trame_entry.get()[3:4],16)
-            number += 1
-            self.writeHexinEntry(number,3,1)
-
+    # Fan 24-31 (8b)
     def FanValueFunction(self):
         if self.FUNC_fan_entry.get() == '':
             return
         number = int(self.FUNC_fan_entry.get())
+
         if number > 100 or number < 0:
             print("Invalid Number. 0-100 values only")
             self.FUNC_fan_entry.delete(0,tk.END)
             return
-        if number == 0:
-            self.writeHexinEntry('00',6,2)
-            return
 
-        number = number.to_bytes(((number.bit_length() + 7) // 8),"big").hex() # convertion dec to hex
-        self.writeHexinEntry(number,6,2)
+        #if number == 0:
+        #    self.writeHexinEntry('00',6,2)
+        #    return
+
+        self.writeHexinEntry((number & 0x0F), 6, 1)
+        self.writeHexinEntry((number >> 4), 7, 1)
+
+    # Checksum 32-39 (8b)
+    def calculateCheckSum(self):
+        #trame = self.FUNC_trame_entry.get()
+        trame = self.FUNC_trame_string.get()
+        print(len(trame))
+        if len(trame) == 10:
+            self.checksumByte[0] = int(trame[0:2],16)
+            self.checksumByte[1] = int(trame[2:4],16)
+            self.checksumByte[2] = int(trame[4:6],16)
+            self.checksumByte[3] = int(trame[6:8],16)
+            self.checksumByte[4] = int(trame[8:10],16)
+            self.checksumByte[4] = self.checksumByte[0] + self.checksumByte[1] +self.checksumByte[2] +self.checksumByte[3]
+            if self.checksumByte[4] >= 256:
+                self.checksumByte[4] -= 256
+            
+            print(self.checksumByte[4])
+            number = self.checksumByte[4]
+
+            lsb = number >> 4
+
+            if lsb == 10:
+                lsb = 'a'
+            elif lsb == 11:
+                lsb = 'b'
+            elif lsb == 12:
+                lsb = 'c'
+            elif lsb == 13:
+                lsb = 'd'
+            elif lsb == 14:
+                lsb = 'e'
+            elif lsb == 15:
+                lsb = 'f'
+
+            msb = number & 0x0F
+
+            if msb == 10:
+                msb = 'a'
+            elif msb == 11:
+                msb = 'b'
+            elif msb == 12:
+                msb = 'c'
+            elif msb == 13:
+                msb = 'd'
+            elif msb == 14:
+                msb = 'e'
+            elif msb == 15:
+                msb = 'f'
+
+            self.FUNC_trame_entry.delete(8, 9)
+            self.FUNC_trame_entry.insert(8,lsb)
+            self.FUNC_trame_entry.delete(9, 10)
+            self.FUNC_trame_entry.insert(9,msb)
+        else:
+            print('Invalid lenght checksum')
+
 
     def writeHexinEntry(self,number,position,lenght):
 
@@ -358,6 +423,7 @@ class GUI():
         self.FUNC_trame_entry.insert(position,str(number))
         self.calculateCheckSum()
 
+
     def resetTrame(self):
         self.FUNC_trame_entry.delete(0,tk.END)
         self.FUNC_trame_entry.insert(0,'0000000000')
@@ -366,67 +432,13 @@ class GUI():
         self.redLightVar = 0
         self.greenLightVar = 0
         self.blueLightVar = 0
+        self.homing = 0
+        self.driverNumber = 0
+        self.lsbPosition = 0
+        self.gripperPosition = 0
         self.FUNC_position_entry.delete(0,tk.END)
         self.FUNC_position_servo.delete(0,tk.END)
         self.FUNC_fan_entry.delete(0,tk.END)
-
-    def selectDriverFunction(self,event=None):
-         wantedDriver = self.FUNC_driver_combo.get()
-         driverNumber = 0
-         for i in range(len(self.DRIVER_label_list)):
-             if self.DRIVER_label_list[i]['text'][0:2] == wantedDriver: # Compare the isolated string from the label to the driver Combo box
-                 driverNumber = i
-                 break
-         number = int(self.DRIVER_entry_list[i].get())
-         number <<= 1
-         homing = int(self.FUNC_trame_entry.get(),16) # take the homing value.
-         self.writeHexinEntry(number,0,1)
-         if homing % 2 == 1:
-             number = int(self.FUNC_trame_entry.get()[0:1],16)
-             number += 1
-             self.writeHexinEntry(number,0,1)
-
-    def calculateCheckSum(self):
-        #trame = self.FUNC_trame_entry.get()
-        trame = self.FUNC_trame_string.get()
-        print(len(trame))
-        if len(trame) == 10:
-            self.checksumByte[0] = int(trame[0:2],16)
-            self.checksumByte[1] = int(trame[2:4],16)
-            self.checksumByte[2] = int(trame[4:6],16)
-            self.checksumByte[3] = int(trame[6:8],16)
-            self.checksumByte[4] = int(trame[8:10],16)
-            self.checksumByte[4] = self.checksumByte[0] + self.checksumByte[1] +self.checksumByte[2] +self.checksumByte[3]
-            if self.checksumByte[4] >= 512:
-                self.checksumByte[4] -= 512
-            if self.checksumByte[4] >= 256:
-                self.checksumByte[4] -= 256
-            
-            print(self.checksumByte[4])
-            number = self.checksumByte[4]
-            number = number.to_bytes(((number.bit_length() + 7) // 8),"big").hex() # convertion dec to hex
-            print(number)
-            self.FUNC_trame_entry.delete(8,10)
-            self.FUNC_trame_entry.insert(8,str(number))
-        #    if self.checksumByte[4] != 0:
-        #        self.FUNC_trame_entry.delete(8,10)
-        #        if self.checksumByte[4] >= 10:
-        #            self.FUNC_trame_entry.insert(8,str(self.checksumByte[4]))
-        #        else:
-        #            self.FUNC_trame_entry.insert(8,'0'+str(self.checksumByte[4]))
-        #    else:
-        #        self.FUNC_trame_entry.delete(8,10)
-        #        self.FUNC_trame_entry.insert(8,str('00'))
-        else:
-            print('Invalid lenght checksum')
-        
-
-
-
-
-        
-                
-
 
 
 app = GUI()
