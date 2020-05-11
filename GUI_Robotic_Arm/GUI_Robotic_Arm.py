@@ -439,6 +439,7 @@ class GUI():
         self.FUNC_position_entry.delete(0,tk.END)
         self.FUNC_position_servo.delete(0,tk.END)
         self.FUNC_fan_entry.delete(0,tk.END)
+        self.selectDriverFunction()
 
 
 app = GUI()
