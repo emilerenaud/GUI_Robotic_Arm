@@ -102,9 +102,9 @@ class GUI():
         self.DRIVER_entry_list = list()
         self.DRIVER_checkbox_list = list()
         self.DRIVER_checkbox_state_list = list()
-        driveNumber = 1
-        for i in range(6):
-            self.DRIVER_label_list.append(ttk.Label(self.GUI_DRIVER_FRAME,text='#'+str(i+1)+' :'))
+        driveNumber = 0
+        for i in range(7):
+            self.DRIVER_label_list.append(ttk.Label(self.GUI_DRIVER_FRAME,text='#'+str(i)+' :'))
             self.DRIVER_label_list[i].grid(row=i+1,column=0)
             self.DRIVER_entry_list.append(ttk.Entry(self.GUI_DRIVER_FRAME,width=3))
             self.DRIVER_entry_list[i].insert(0,driveNumber)
@@ -118,7 +118,7 @@ class GUI():
         self.FUNC_driver_label = ttk.Label(self.GUI_FUNCTION_FRAME,text='Driver :')
         self.FUNC_driver_combo = ttk.Combobox(self.GUI_FUNCTION_FRAME,width=3)
         self.FUNC_driver_combo.bind('<<ComboboxSelected>>', self.selectDriverFunction)
-        self.FUNC_driver_combo['values'] = ['#1','#2','#3','#4','#5','#6']
+        self.FUNC_driver_combo['values'] = ['#0','#1','#2','#3','#4','#5','#6']
         self.FUNC_home_button = ttk.Button(self.GUI_FUNCTION_FRAME,text='Homing',command=self.homingFunction)
         self.FUNC_enable_motor = ttk.Button(self.GUI_FUNCTION_FRAME,text='Enable Motor',command=self.enableMotorFunction)
         self.FUNC_position_entry = ttk.Entry(self.GUI_FUNCTION_FRAME,width=4)
