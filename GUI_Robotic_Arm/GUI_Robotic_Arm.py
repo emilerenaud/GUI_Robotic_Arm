@@ -203,8 +203,11 @@ class GUI():
 
                 switch = trame[9] + trame[8]
                 self.trameByte[4] = int(switch, 16)
+
                 try:
                     self.ftdi.write(serial.to_bytes(self.trameByte))
+                    #self.ftdi.read()
+                    #print(self.ftdi.read(5))
                     self.trameByte = [0x00,0x00,0x00,0x00,0x00]
                 except:
                     print('Error while writting on FTDI')
@@ -354,16 +357,23 @@ class GUI():
         trame = self.FUNC_trame_string.get()
         print(len(trame))
         if len(trame) == 10:
-            self.checksumByte[0] = int(trame[0:2],16)
-            self.checksumByte[1] = int(trame[2:4],16)
-            self.checksumByte[2] = int(trame[4:6],16)
-            self.checksumByte[3] = int(trame[6:8],16)
-            self.checksumByte[4] = int(trame[8:10],16)
-            self.checksumByte[4] = self.checksumByte[0] + self.checksumByte[1] +self.checksumByte[2] +self.checksumByte[3]
+            switch = trame[1] + trame[0]
+            self.checksumByte[0] = int(switch, 16)
+                
+            switch = trame[3] + trame[2]
+            self.checksumByte[1] = int(switch, 16)
+
+            switch = trame[5] + trame[4]
+            self.checksumByte[2] = int(switch, 16)
+
+            switch = trame[7] + trame[6]
+            self.checksumByte[3] = int(switch, 16)
+
+            self.checksumByte[4] = self.checksumByte[0] + self.checksumByte[1] + self.checksumByte[2] + self.checksumByte[3]
             if self.checksumByte[4] >= 256:
                 self.checksumByte[4] -= 256
             
-            print(self.checksumByte[4])
+            print(hex(self.checksumByte[4]))
             number = self.checksumByte[4]
 
             lsb = number >> 4
@@ -397,9 +407,9 @@ class GUI():
                 msb = 'f'
 
             self.FUNC_trame_entry.delete(8, 9)
-            self.FUNC_trame_entry.insert(8,lsb)
+            self.FUNC_trame_entry.insert(8,msb)
             self.FUNC_trame_entry.delete(9, 10)
-            self.FUNC_trame_entry.insert(9,msb)
+            self.FUNC_trame_entry.insert(9,lsb)
         else:
             print('Invalid lenght checksum')
 
