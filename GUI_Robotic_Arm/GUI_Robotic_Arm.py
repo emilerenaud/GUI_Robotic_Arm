@@ -16,6 +16,8 @@ try:
 except:
     print("Unable to import pyftdi & serial")
 
+import ikpy
+import numpy as np
 
 
 
@@ -38,9 +40,12 @@ class GUI():
         self.homing = 0
         self.lsbPosition = 0
         self.gripperPosition = 0
+        self.angle = [0,0,0,0,0]
 
-        self.initGUI()
-        
+        #Open URDF file of arm for links and chains
+        self.my_chain = ikpy.chain.Chain.from_urdf_file("ur3_robot.urdf")
+
+        self.initGUI()   
 
     def initGUI(self):
         self.app = tk.Tk()
@@ -66,6 +71,111 @@ class GUI():
 
 
         # TAB DEBUG
+        self.initTabDebug()
+        self.initTabMain()
+
+    def initTabMain(self):
+        # Main Frame
+        self.GUI_LEFT_FRAME_MAIN = ttk.Frame(self.main_tab)
+        self.GUI_RIGHT_FRAME_MAIN = ttk.Frame(self.main_tab)
+
+        self.GUI_LEFT_FRAME_MAIN.pack(side=tk.LEFT,fill=tk.BOTH)
+        self.GUI_RIGHT_FRAME_MAIN.pack(side=tk.LEFT,fill=tk.BOTH)
+
+        # KI position widget
+        self.KI_position_label = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "Robot end effector")
+
+        self.x_label = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "X:")
+        self.x_entry = ttk.Entry(self.GUI_LEFT_FRAME_MAIN, width = 3)
+        self.y_label = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "Y:")
+        self.y_entry = ttk.Entry(self.GUI_LEFT_FRAME_MAIN, width = 3)
+        self.z_label = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "Z:")
+        self.z_entry = ttk.Entry(self.GUI_LEFT_FRAME_MAIN, width = 3)
+
+        self.calculateAngle = ttk.Button(self.GUI_LEFT_FRAME_MAIN, text = "Calculate",command = self.calculateKI)
+
+        self.final_angle_one = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "1:")
+        self.final_angle_two = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "2:")
+        self.final_angle_three = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "3:")
+        self.final_angle_four = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "4:")
+        self.final_angle_five = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "5:")
+        self.final_angle_six = ttk.Label(self.GUI_LEFT_FRAME_MAIN, text = "6:")
+
+        self.sendAngle = ttk.Button(self.GUI_LEFT_FRAME_MAIN, text = "Send Angle", command = self.sendAngle)
+
+        # Place widget
+        self.KI_position_label.grid(row=0,column=0,columnspan=6,sticky=tk.EW,padx=5,pady=5)
+
+        self.x_label.grid(row=1,column=0)
+        self.x_entry.grid(row=1,column=1)
+        self.y_label.grid(row=1,column=2)
+        self.y_entry.grid(row=1,column=3)
+        self.z_label.grid(row=1,column=4)
+        self.z_entry.grid(row=1,column=5)
+
+        self.calculateAngle.grid(row=2,column=0,columnspan=6,sticky=tk.EW)
+
+        self.final_angle_one.grid(row=3,column=0,columnspan=2,sticky=tk.EW)
+        self.final_angle_two.grid(row=3,column=2,columnspan=2,sticky=tk.EW)
+        self.final_angle_three.grid(row=3,column=4,columnspan=2,sticky=tk.EW)
+        self.final_angle_four.grid(row=4,column=0,columnspan=2,sticky=tk.EW)
+        self.final_angle_five.grid(row=4,column=2,columnspan=2,sticky=tk.EW)
+        self.final_angle_six.grid(row=4,column=4,columnspan=2,sticky=tk.EW)
+
+        self.sendAngle.grid(row=5,column=0,columnspan=6,sticky=tk.EW)
+
+        # Graph robot.
+
+    def calculateKI(self):
+        if (self.x_entry.get() != None) & (self.y_entry.get() != None) & (self.z_entry.get() != None):
+            x = float(self.x_entry.get()) /100
+            y = float(self.y_entry.get()) /100
+            z = float(self.z_entry.get()) /100
+        else:
+            return 0
+        #Matrice for end-effector's position
+        target_position = [x, y, z]
+
+        #List of joints angles
+        angles = self.my_chain.inverse_kinematics(target_position)
+
+        #Convert radians to degrees
+        for a in range(len(angles) - 2):
+            angles[a] = np.degrees(angles[a])
+
+        #Add offset to angles (homing 0's)
+        self.final_angle_one['text'] = "1: " + str(int(angles[1] + 85))
+        self.final_angle_two['text'] = "2: " + str(int(angles[2] + 135))
+        self.final_angle_three['text'] = "3: " + str(int(angles[3] + 110))
+        self.final_angle_four['text'] = "4: " + str(int(angles[4] + 146))
+        self.final_angle_five['text'] = "5: " + str(int(angles[5] + 180))
+        self.final_angle_six['text'] = "6: 0"
+
+        self.angle[0] = int(angles[1] + 95)
+        self.angle[1] = int(angles[2] + 135)
+        self.angle[2] = int(angles[3] + 110)
+        self.angle[3] = int(angles[4] + 146)
+        self.angle[4] = int(angles[5] + 180)
+
+    def sendAngle(self):
+        i = 1
+        if self.enableMotorVar == 0:
+            self.enableMotorFunction()
+        for angle in self.angle:
+            self.FUNC_position_entry.delete(0,tk.END)
+            self.FUNC_position_entry.insert(0, angle)
+            self.motorValueFunction()
+            self.FUNC_driver_combo.current(i)
+            self.selectDriverFunction()
+            i += 1
+            self.sendTrame()
+            time.sleep(0.5)
+
+
+
+
+
+    def initTabDebug(self):
         # Main Frame
         self.GUI_LEFT_FRAME = ttk.Frame(self.debug_tab)
         self.GUI_RIGHT_FRAME = ttk.Frame(self.debug_tab)
@@ -238,6 +348,9 @@ class GUI():
     def homingFunction(self):
         if self.homingEnableVar == 0:
             number = 8
+            self.FUNC_position_entry.delete(0,tk.END)
+            self.FUNC_position_entry.insert(0, '0')
+            self.motorValueFunction()
             self.homingEnableVar = 1;
         else:
             number = 0
@@ -312,11 +425,12 @@ class GUI():
         self.writeHexinEntry((position & 0x0F),2,1)
         self.writeHexinEntry((position >> 4),3,1)
 
-
     # Position 15-23 (9b)
     def motorValueFunction(self):
         if self.FUNC_position_entry.get() == '':
             return
+        self.homingEnableVar = 0;
+        self.writeHexinEntry(0 + self.driverNumber,0,1) 
         number = int(self.FUNC_position_entry.get())
         if number > 360 or number < 0:
             print("Invalid Position. 0-360 values only")
@@ -331,7 +445,6 @@ class GUI():
         number = number >> 1
         self.writeHexinEntry((number & 0x0F),4,1)
         self.writeHexinEntry((number >> 4),5,1)
-
 
     # Fan 24-31 (8b)
     def FanValueFunction(self):
@@ -413,7 +526,6 @@ class GUI():
         else:
             print('Invalid lenght checksum')
 
-
     def writeHexinEntry(self,number,position,lenght):
 
         if number == 10:
@@ -433,7 +545,6 @@ class GUI():
         self.FUNC_trame_entry.insert(position,str(number))
         self.calculateCheckSum()
 
-
     def resetTrame(self):
         self.FUNC_trame_entry.delete(0,tk.END)
         self.FUNC_trame_entry.insert(0,'0000000000')
@@ -450,6 +561,7 @@ class GUI():
         self.FUNC_position_servo.delete(0,tk.END)
         self.FUNC_fan_entry.delete(0,tk.END)
         self.selectDriverFunction()
+
 
 
 app = GUI()
