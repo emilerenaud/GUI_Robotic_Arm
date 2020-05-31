@@ -4,6 +4,19 @@ from tkinter import simpledialog
 from tkinter import filedialog
 from tkinter import messagebox
 
+try:
+    import matplotlib
+    import matplotlib.pyplot as plt
+    matplotlib.use('TkAgg')
+    #from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+    from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+    from matplotlib.figure import Figure
+    import matplotlib.animation as animation
+    from matplotlib import style
+    style.use('ggplot')
+except:
+    print("matplotlib error")
+
 import time
 from datetime import datetime
 
@@ -103,6 +116,15 @@ class GUI():
 
         self.sendAngle = ttk.Button(self.GUI_LEFT_FRAME_MAIN, text = "Send Angle", command = self.sendAngle)
 
+        f = Figure(figsize=(15,5), dpi=100)
+        self.Graph = FigureCanvasTkAgg(f,self.GUI_RIGHT_FRAME_MAIN)
+        
+        self.Graph.draw()
+        
+        self.a1 = f.add_subplot(111, projection='3d')
+        self.toolbar = NavigationToolbar2Tk(self.Graph,self.GUI_RIGHT_FRAME_MAIN)
+        self.Graph.get_tk_widget().pack(fill=tk.BOTH,expand=True)
+
         # Place widget
         self.KI_position_label.grid(row=0,column=0,columnspan=6,sticky=tk.EW,padx=5,pady=5)
 
@@ -156,6 +178,9 @@ class GUI():
         self.angle[2] = int(angles[3] + 110)
         self.angle[3] = int(angles[4] + 146)
         self.angle[4] = int(angles[5] + 180)
+        self.a1.clear()
+        self.my_chain.plot(self.my_chain.inverse_kinematics(target_position), self.a1)
+        self.Graph.draw()
 
     def sendAngle(self):
         i = 1
